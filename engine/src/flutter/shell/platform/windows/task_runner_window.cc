@@ -52,7 +52,6 @@ void TimerThread::ScheduleAt(
   if (time_point < next_fire_time_) {
     next_fire_time_ = time_point;
   }
-  ++schedule_counter_;
   cv_.notify_all();
 }
 
@@ -63,17 +62,17 @@ void TimerThread::TimerThreadMain() {
       return std::chrono::high_resolution_clock::now() >= next_fire_time_ ||
              callback_ == nullptr;
     });
-    auto scheduled_count = schedule_counter_;
     if (callback_) {
+      // Reset next_fire_time_ before calling callback so that any
+      // ScheduleAt() called during callback execution will correctly
+      // set a new fire time (since any real time point < max()).
+      // This prevents a spin loop where next_fire_time_ remains in the
+      // past and wait_until returns immediately.
+      next_fire_time_ =
+          std::chrono::time_point<std::chrono::high_resolution_clock>::max();
       lock.unlock();
       callback_();
       lock.lock();
-    }
-    // If nothing was scheduled in the meanwhile park the timer.
-    if (scheduled_count == schedule_counter_ &&
-        next_fire_time_ <= std::chrono::high_resolution_clock::now()) {
-      next_fire_time_ =
-          std::chrono::time_point<std::chrono::high_resolution_clock>::max();
     }
   }
 }

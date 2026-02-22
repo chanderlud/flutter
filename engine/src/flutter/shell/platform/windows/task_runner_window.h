@@ -47,7 +47,6 @@ class TimerThread {
   std::mutex mutex_;
   std::condition_variable cv_;
   std::function<void()> callback_;
-  uint64_t schedule_counter_ = 0;
   std::chrono::time_point<std::chrono::high_resolution_clock> next_fire_time_;
   std::optional<std::thread> thread_;
 };
